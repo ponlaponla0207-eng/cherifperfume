@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>簡易 3x3 拼圖遊戲</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        /* 遊戲容器：設定網格佈局 */
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px); /* 3欄，每欄100px */
+            grid-template-rows: repeat(3, 100px);    /* 3列，每列100px */
+            gap: 2px; /* 方塊之間的間距 */
+            background-color: #333;
+            border: 5px solid #333;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        /* 拼圖方塊樣式 */
+        .tile {
+            width: 100px;
+            height: 100px;
+            cursor: pointer;
+            position: relative;
+            background-image: url('https://img.funto.in/uploads/shops/660/products/d2/d24ee09f92feef92f173ae74bf648d3e.jpg?v=0'); /* 圖片來源 */
+            background-repeat: no-repeat;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+
+        /* 當滑鼠移上去的效果 */
+        .tile:hover {
+            opacity: 0.8;
+        }
+
+        /* 被選中時的樣式 (準備交換) */
+        .selected {
+            border: 3px solid #ffeb3b; /* 黃色邊框 */
+            z-index: 10;
+            box-sizing: border-box;
+            transform: scale(0.95);
+        }
+
+        /* 按鈕樣式 */
+        #shuffle-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #shuffle-btn:hover {
+            background-color: #0056b3;
+        }
+        
+        #message {
+            margin-top: 15px;
+            color: green;
+            font-weight: bold;
+            height: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🧩 拼圖挑戰</h1>
+    
+    <div id="game-board"></div>
+    
+    <div id="message"></div>
+    <button id="shuffle-btn" onclick="initGame()">重新洗牌</button>
+
+    <script>
+        const board = document.getElementById('game-board');
+        const messageDiv = document.getElementById('message');
+        let tiles = []; // 儲存目前的拼圖順序
+        let selectedTileIndex = null; // 記錄第一次點擊的方塊索引
+
+        // 產生正確的順序陣列 [0, 1, 2, ... 8]
+        // 這些數字代表圖片的「切片位置」
+        const correctOrder = [0, 1, 2, 3, 4, 5, 6, 7, 8];
+
+        // 初始化遊戲
+        function initGame() {
+            // 複製一份正確順序來進行洗牌
+            tiles = [...correctOrder]; 
+            
+            // 隨機打亂陣列 (Shuffle)
+            for (let i = tiles.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+            }
+
+            messageDiv.innerText = "";
+            selectedTileIndex = null;
+            renderBoard();
+        }
+
+        // 渲染畫面 (將陣列轉換成 HTML 元素)
+        function renderBoard() {
+            board.innerHTML = ''; // 清空目前的畫面
+
+            tiles.forEach((tileValue, index) => {
+                const tileDiv = document.createElement('div');
+                tileDiv.classList.add('tile');
+                
+                // 設定背景位置的核心邏輯！
+                // 根據 tileValue (圖片原本的位置) 來決定顯示圖片的哪一部分
+                const row = Math.floor(tileValue / 3);
+                const col = tileValue % 3;
+                
+                // backgroundPositionX 是負的 col * 100px
+                // backgroundPositionY 是負的 row * 100px
+                tileDiv.style.backgroundPosition = `-${col * 100}px -${row * 100}px`;
+
+                // 綁定點擊事件
+                tileDiv.onclick = () => handleTileClick(index);
+
+                // 如果這個方塊是被選中的，加上樣式
+                if (index === selectedTileIndex) {
+                    tileDiv.classList.add('selected');
+                }
+
+                board.appendChild(tileDiv);
+            });
+        }
+
+        // 處理點擊邏輯
+        function handleTileClick(index) {
+            // 情況一：還沒選過任何方塊
+            if (selectedTileIndex === null) {
+                selectedTileIndex = index;
+                renderBoard(); // 重新渲染以顯示黃色框框
+                return;
+            }
+
+            // 情況二：點擊了同一個方塊 (取消選取)
+            if (selectedTileIndex === index) {
+                selectedTileIndex = null;
+                renderBoard();
+                return;
+            }
+
+            // 情況三：已經選了一個，現在點了第二個 -> 交換位置 (Swap)
+            swapTiles(selectedTileIndex, index);
+            selectedTileIndex = null; // 重置選取狀態
+            renderBoard();
+            
+            // 每次交換後檢查是否勝利
+            checkWin();
+        }
+
+        // 交換陣列中的兩個元素
+        function swapTiles(index1, index2) {
+            const temp = tiles[index1];
+            tiles[index1] = tiles[index2];
+            tiles[index2] = temp;
+        }
+
+        // 檢查是否完成
+        function checkWin() {
+            // 將目前的 tiles 陣列轉成字串，跟正確答案比對
+            if (tiles.toString() === correctOrder.toString()) {
+                messageDiv.innerText = "🎉 恭喜完成！你太厲害了！";
+                // 稍微延遲一點再跳出視窗，讓玩家看到最後一塊歸位
+                setTimeout(() => alert('恭喜完成拼圖！折扣碼:251225'), 100);
+            }
+        }
+
+        // 網頁載入時直接開始遊戲
+        initGame();
+
+    </script>
+</body>
+</html>
